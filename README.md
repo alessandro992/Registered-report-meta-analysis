@@ -1,2 +1,2 @@
-# Stress-regulation-meta-analysis
-This is the repo for the stress regulation pre-registered meta-analysis.
+# Stage 1 Registered Report: Stress regulation via being in nature and social support in adults, a meta-analysis 
+This is the repository for the: Stage 1 Registered Report: Stress regulation via being in nature and social support in adults, a meta-analysis 
