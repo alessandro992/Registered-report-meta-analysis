@@ -8,9 +8,9 @@ if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, quietly = TRUE, warn.conflicts = FALSE, character.only = TRUE)
 select <- dplyr::select
 
-datMind <- read_delim("SAM.csv", delim = ";", trim_ws = T)
-datBio <- read_delim("BF.csv", delim = ";", trim_ws = T)
-dat <- bind_rows(datMind, datBio)
+datNature <- read_delim("beingNature.csv", delim = ";", trim_ws = T)
+datSocial <- read_delim("socialSupport.csv", delim = ";", trim_ws = T)
+dat <- bind_rows(datNature, datSocial)
 
 dat <- dat %>% modify_at(., .at = c("F", "beta", "t", "r", "chiSq", "df1", "df2", "sd1", "sd2", "se1", "se2", "n1", "n2", "mean1", "mean2", "published", "researchDesign", "publicationYear", "nMale", "nFemale"), .f = ~as.numeric(as.character(.)))
 
@@ -109,13 +109,13 @@ grimmer(dat)
 dat$useMA <- 1
 dat <- dat %>% filter_all(any_vars(!is.na(.)))
 
-dataMind <- dat %>% filter(strategy == 1 &
+dataNature <- dat %>% filter(strategy == 1 &
                              !is.na(yi) &
                              !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
                              !(inconsistenciesCountGRIM %in% c(1, 2)) &
                              robOverall != 3 &
                              timingEffect == 1)
-dataBio <- dat %>% filter(strategy == 2 &
+dataSocial <- dat %>% filter(strategy == 2 &
                             !is.na(yi) &
                             !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
                             !(inconsistenciesCountGRIM %in% c(1, 2)) &
@@ -126,56 +126,54 @@ datIncluded <- dat %>% filter(!is.na(yi) &
                                 !(inconsistenciesCountGRIM %in% c(1, 2)) &
                                 robOverall != 3 &
                                 timingEffect == 1 &
-                                !result %in% c(57, 59, 103, 104))
+                                !result %in% c())
 
 # Remove outliers (based on the results from the maDiag script)
-dataMind <- dataMind %>% filter(!result %in% c(57, 59))
-dataBio <- dataBio %>% filter(!result %in% c(103, 104))
+dataNature <- dataNature %>% filter(!result %in% c())
+dataSocial <- dataSocial %>% filter(!result %in% c())
 
 # Data objects including inconsistent effects
-dataMindIncon <- dat %>% filter(strategy == 1 &
+dataNatureIncon <- dat %>% filter(strategy == 1 &
                              !is.na(yi) &
                              robOverall != 3 &
                              timingEffect == 1)
-dataBioIncon <- dat %>% filter(strategy == 2 &
+dataSocialIncon <- dat %>% filter(strategy == 2 &
                             !is.na(yi) &
                             robOverall != 3 &
                             timingEffect == 1)
 
-dataMindIncon <- dataMindIncon %>% filter(!result %in% c(57, 59))
-dataBioIncon <- dataBioIncon %>% filter(!result %in% c(103, 104))
+# dataNatureIncon <- dataNatureIncon %>% filter(!result %in% c())
+# dataSocialIncon <- dataSocialIncon %>% filter(!result %in% c())
 
 # Data objects including studies with all levels of risk of bias
-dataMindRob <- dat %>% filter(strategy == 1 &
+dataNatureRob <- dat %>% filter(strategy == 1 &
                              !is.na(yi) &
                              !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
                              !(inconsistenciesCountGRIM %in% c(1, 2)) &
                              timingEffect == 1)
-dataBioRob <- dat %>% filter(strategy == 2 &
+dataSocialRob <- dat %>% filter(strategy == 2 &
                             !is.na(yi) &
                             !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
                             !(inconsistenciesCountGRIM %in% c(1, 2)) &
                             timingEffect == 1)
 
-dataMindRob <- dataMindRob %>% filter(!result %in% c(57, 59))
-dataBioRob <- dataBioRob %>% filter(!result %in% c(103, 104))
+# dataNatureRob <- dataNatureRob %>% filter(!result %in% c())
+# dataSocialRob <- dataSocialRob %>% filter(!result %in% c())
 
 # Data objects including effects based on immediate as well as delayed posttest
-dataMindPost <- dat %>% filter(strategy == 1 &
+dataNaturePost <- dat %>% filter(strategy == 1 &
                              !is.na(yi) &
                              !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
                              !(inconsistenciesCountGRIM %in% c(1, 2)) &
                              robOverall != 3)
-dataBioPost <- dat %>% filter(strategy == 2 &
+dataSocialPost <- dat %>% filter(strategy == 2 &
                             !is.na(yi) &
                             !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
                             !(inconsistenciesCountGRIM %in% c(1, 2)) &
                             robOverall != 3)
 
-dataMindPost <- dataMindPost %>% filter(!result %in% c(57, 59))
-dataBioPost <- dataBioPost %>% filter(!result %in% c(103, 104))
-
-
+# dataNaturePost <- dataNaturePost %>% filter(!result %in% c())
+# dataSocialPost <- dataSocialPost %>% filter(!result %in% c())
 
 # Correlation -------------------------------------------------------------
 

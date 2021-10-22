@@ -56,12 +56,12 @@ plot(inf)
 
 # Missing data ------------------------------------------------------------
 
-# For mindfulness studies
+# For being in nature studies
 dat %>% filter(strategy == 1) %$% table(is.na(.$yi))
 
-# For biofeedback studies
+# For social support studies
 dat %>% filter(strategy == 2) %$% table(is.na(.$yi))
 
 #'### Percentage of missing data overall
-# dat %>% filter(strategy == 2) %$% paste(round(sum(is.na(.))/prod(dim(.))*100, 3), "%", sep = "") # insert collumn numbers
+# dat %>% filter(strategy == 2) %$% paste(round(sum(is.na(.))/prod(dim(.))*100, 3), "%", sep = "") # insert column numbers
 dat %>% filter(strategy == 2) %>% missmap(rank.order = TRUE, margins = c(10, 0), legend = F)
