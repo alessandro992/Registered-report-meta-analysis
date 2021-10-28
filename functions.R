@@ -153,10 +153,10 @@ veveaWoodsSM <- function(data, stepsDelta, nIteration = nIterationVWsensitivity)
 }
 
 # Robust Bayesian meta-analysis
-bma <- function(data, seedNo = 1, chainsNo = 2, nIterationBMAsensitivity = 200){
-  set.seed(1)
-  tryCatch(summary(RoBMA(d = data$yi, se = sqrt(data$vi), study_names = data$result, seed = seedNo,
-  chains = chainsNo, iter = nIterationBMAsensitivity, parallel = TRUE)), error = function(e) NULL)
+bma <- function(data, seedNo = 1, chainsNo = robmaChains, nIterationBMA = robmaSamples){
+  tryCatch(summary(data %>% filter(!is.na(yi) & !is.na(vi)) %$% RoBMA(d = yi, v = vi, study_names = label, seed = seedNo,
+                                                                      chains = chainsNo, sample = nIterationBMA, burnin = ifelse(2*nIterationBMA/5 < 50, 50, 2*nIterationBMA/5), parallel = TRUE)), 
+           error = function(e) NULL)
 }
 
 # PET-PEESE ---------------------------------------------------------------
@@ -271,19 +271,19 @@ powerEst <- function(data = NA){
 
 # Publication bias summary function-------------------------------
 
-bias <- function(data = NA, rmaObject = NA){
+bias <- function(data = NA, rmaObject = NA, runRobMA = 1){
   # Correlation between the ES and precision (SE)
   esPrec <- cor(rmaObject[[1]]$yi, sqrt(rmaObject[[1]]$vi), method = "kendall")
-  
+
   # Small-study effects correction
+  # 3-parameter selection model
+  resultSelModel <- selectionModel(data, minNoPvals = minPvalues, nIteration = nIterations, fallback = fallback)
+  
   # Vevea & Woods selection model
   resultsVeveaWoodsSM <- veveaWoodsSM(data, stepsDelta)
   
   # Robust Bayesian model-averaging approach
-  bmaMod <- bma(data)
-
-  # 3-parameter selection model
-  resultSelModel <- selectionModel(data, minNoPvals = minPvalues, nIteration = nIterations, fallback = fallback)
+  bmaMod <- if(runRobMA == TRUE){bma(data)}
   
   # PET-PEESE
   petPeeseOut <- petPeese(data)
@@ -312,7 +312,7 @@ bias <- function(data = NA, rmaObject = NA){
   return(list("ES-precision correlation" = esPrec,
               "4/3PSM" = resultSelModel,
               "Vevea & Woods SM" = resultsVeveaWoodsSM,
-              "Robust BMA" = bmaMod,
+              "Robust BMA" = bmaMod$estimates,
               "PET-PEESE" = petPeeseOut,
               "WAAP-WLS" = waapWLSout,
               "p-uniform*" = puniformOut,
@@ -342,19 +342,26 @@ maResultsTable <- function(maResultsObject, metaAnalysis = TRUE, bias = TRUE){
   if(bias == TRUE & metaAnalysis == TRUE){
     noquote(c(
       "k" = as.numeric(maResultsObject[[1]]$k.all),
-      "ES [95% CI]" = paste(round(as.numeric(maResultsObject[[2]]$test$beta), 2), " [", round(maResultsObject[[2]]$CIs$CI_L, 2), ", ", round(maResultsObject[[2]]$CIs$CI_U, 2), "]", sep = ""),
+      "g [95% CI]" = paste(round(as.numeric(maResultsObject[[2]]$test$beta), 2), " [", round(maResultsObject[[2]]$CIs$CI_L, 2), ", ", round(maResultsObject[[2]]$CIs$CI_U, 2), "]", sep = ""),
+      "95% PI [LB, UB]" = paste("[", round(maResultsObject$`Prediction interval`[1], 2), ", ", round(maResultsObject$`Prediction interval`[2], 2), "]", sep = ""),
       "SE" = round(maResultsObject[[2]]$test$SE, 2),
       round(maResultsObject[[4]]["Tau"], 2),
       "I^2" = paste(round(maResultsObject[[4]]["I^2"], 0), "%", sep = ""),
+      "% significant" = paste(round(maResultsObject[["Proportion of significant results"]]*100, 0), "%", sep = ""),
       "3PSM est [95% CI]" = paste(round(maResultsObject[[6]][["4/3PSM"]]["est"], 2), " [", round(maResultsObject[[6]][["4/3PSM"]]["ciLB"], 2), ", ", round(maResultsObject[[6]][["4/3PSM"]]["ciUB"], 2), "]", sep = ""),
       "3PSM" = round(maResultsObject[[6]][["4/3PSM"]]["pvalue"], 3),
+      "V&W [moderate/severe/extreme]" = paste(round(as.numeric(maResultsObject[[6]][["Vevea & Woods SM"]][1,1]), 2),"/",round(as.numeric(maResultsObject[[6]][["Vevea & Woods SM"]][2,1]), 2), "/", round(as.numeric(maResultsObject[[6]][["Vevea & Woods SM"]][3,1]), 2), sep = ""),
+      "RoBMA [95% CI]" = paste(round(maResultsObject[[6]][["Robust BMA"]]$Mean[1], 2), " [", round(maResultsObject[[6]][["Robust BMA"]]$`0.025`[1], 2), ", ", round(maResultsObject[[6]][["Robust BMA"]]$`0.975`[1], 2), "]", sep = ""),
       "PET-PEESE est [95% CI]" = paste(round(maResultsObject[[6]][["PET-PEESE"]][1], 2), " [", round(maResultsObject[[6]][["PET-PEESE"]][5], 2), ", ", round(maResultsObject[[6]][["PET-PEESE"]][6], 2), "]", sep = ""),
       "PET-PEESE" = round(maResultsObject[[6]][["PET-PEESE"]][4], 3)
     ))
   } else if (metaAnalysis == FALSE & bias == TRUE) {
     noquote(c(
+      "% significant" = paste(round(maResultsObject[["Proportion of significant results"]]*100, 0), "%", sep = ""),
       "3PSM est [95% CI]" = paste(round(maResultsObject[[1]][["4/3PSM"]]["est"], 2), " [", round(maResultsObject[[1]][["4/3PSM"]]["ciLB"], 2), ", ", round(maResultsObject[[1]][["4/3PSM"]]["ciUB"], 2), "]", sep = ""),
       "3PSM" = round(maResultsObject[[1]][["4/3PSM"]]["pvalue"], 3),
+      "V&W [moderate/severe/extreme]" = paste(round(as.numeric(maResultsObject[[6]][["Vevea & Woods SM"]][1,1]), 2),"/",round(as.numeric(maResultsObject[[6]][["Vevea & Woods SM"]][2,1]), 2), "/", round(as.numeric(maResultsObject[[6]][["Vevea & Woods SM"]][3,1]), 2), sep = ""),
+      "RoBMA [95% CI]" = paste(round(maResultsObject[[6]][["Robust BMA"]]$Mean[1], 2), " [", round(maResultsObject[[6]][["Robust BMA"]]$`0.025`[1], 2), ", ", round(maResultsObject[[6]][["Robust BMA"]]$`0.975`[1], 2), "]", sep = ""),
       "PET-PEESE est [95% CI]" = paste(round(maResultsObject[[1]][["PET-PEESE"]][1], 2), " [", round(maResultsObject[[1]][["PET-PEESE"]][5], 2), ", ", round(maResultsObject[[1]][["PET-PEESE"]][6], 2), "]", sep = ""),
       "PET-PEESE" = round(maResultsObject[[1]][["PET-PEESE"]][4], 3)
     ))
@@ -362,6 +369,7 @@ maResultsTable <- function(maResultsObject, metaAnalysis = TRUE, bias = TRUE){
     noquote(c(
       "k" = as.numeric(maResultsObject[[1]]$k.all),
       "g [95% CI]" = paste(round(as.numeric(maResultsObject[[2]]$test$beta), 2), " [", round(maResultsObject[[2]]$CIs$CI_L, 2), ", ", round(maResultsObject[[2]]$CIs$CI_U, 2), "]", sep = ""),
+      "95% PI [LB, UB]" = paste("[", maResultsObject$`Prediction interval`[1], ", ", maResultsObject$`Prediction interval`[2], "]", sep = ""),
       "SE" = round(maResultsObject[[2]]$test$SE, 2),
       round(maResultsObject[[4]]["Tau"], 2),
       "I^2" = paste(round(maResultsObject[[4]]["I^2"], 0), "%", sep = "")
