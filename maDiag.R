@@ -1,6 +1,6 @@
 # Outlier diagnostics -----------------------------------------------------
 
-#'# For mindfulness studies
+#'# For "being in nature" studies
 
 #+eval = FALSE
 # Initial outlier diagnostics
@@ -24,7 +24,7 @@ inf <- influence(ma.uni, progbar = T)
 ### Plot the influence diagnostics
 plot(inf)
 
-#'# For biofeedback studies
+#'# For "emotional social support" studies
 
 #+eval = FALSE
 # Initial outlier diagnostics
