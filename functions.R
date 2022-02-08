@@ -16,6 +16,15 @@ if (test == "one-tailed") {
   alpha <- .05
 }
 
+# Steps and delta parameters for Vevea & Woods selection models 
+# Can be adjusted if a different selection process is assumed. 
+# Please note that steps vector represents one-tailed p-values.
+stepsDelta <- data.frame(
+  steps =     c(.0025, .005, .0125, .025, .05, .10, .25, .50, 1),
+  moderateSelection = c(1, 0.99, 0.97, 0.95, 0.80, 0.60, 0.50, 0.50, 0.50),
+  severeSelection =   c(1, 0.99, 0.97, 0.95, 0.65, 0.40, 0.25, 0.25, 0.25),
+  extremeSelection =  c(1, 0.98, 0.95, 0.90, 0.50, 0.20, 0.10, 0.10, 0.10))
+
 # Meta-analysis -----------------------------------------------------------
 
 # Meta analysis run on a filtered dataset
