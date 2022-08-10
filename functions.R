@@ -175,7 +175,7 @@ bma <- function(data, seedNo = 1, chainsNo = robmaChains, nIterationBMA = robmaS
 
 #PET-PEESE with 4/3PSM as the conditional estimator instead of PET. 
 # Also implemented the modified sample-size based estimator (see https://www.jepusto.com/pet-peese-performance/).
-petPeese <- function(data, nBased = TRUE, selModAsCondEst = condEst){  # if nBased = TRUE, use the sample-size-based estimator, if FALSE, use the ordinary SE/var. If selModAsCondEst = TRUE, use the selection model as conditional estimator, otherwise use PET.
+petPeese <- function(data, nBased = nBasedEst, selModAsCondEst = selModAsCondEstimator){  # if nBased = TRUE, use the sample-size-based estimator, if FALSE, use the ordinary SE/var. If selModAsCondEst = TRUE, use the selection model as conditional estimator, otherwise use PET.
   data <- data %>% filter(useMeta == 1)
   viMatrix <- data %$% impute_covariance_matrix(vi, cluster = study, r = rho)  # compute the covariance matrix for the CHE working model
   
@@ -282,7 +282,7 @@ powerEst <- function(data = NA, forBiasAdj = TRUE){
 
 # Publication bias summary function-------------------------------
 
-bias <- function(data = NA, rmaObject = NA, runRobMA = 1){
+bias <- function(data = NA, rmaObject = NA, runRoBMA = runRoBMAmodel){
   # Correlation between the ES and precision (SE)
   esPrec <- cor(rmaObject[[1]]$yi, sqrt(rmaObject[[1]]$vi), method = "kendall")
 
@@ -291,7 +291,7 @@ bias <- function(data = NA, rmaObject = NA, runRobMA = 1){
   resultsVeveaWoodsSM <- veveaWoodsSM(data, stepsDelta)
   
   # Robust Bayesian model-averaging approach
-  bmaMod <- if(runRobMA == TRUE){bma(data)}
+  bmaMod <- if(runRoBMA == TRUE){bma(data)}
   
   # 3-parameter selection model
   resultSelModel <- selectionModel(data, minNoPvals = minPvalues, nIteration = nIterations, fallback = fallback)
@@ -465,10 +465,10 @@ grim <- function(dat){
   dat <- dat %>% mutate(items = ifelse(is.na(items), 0, items))
   outGrimM1 <- NA
   outGrimM2 <- NA
-  datGRIM <- dat %>% filter(complete.cases(nExp, nCtrl, mExp, mCtrl, items))
+  datGRIM <- dat %>% filter(complete.cases(n1, n2, mean1, mean2, items))
   for(i in 1:nrow(datGRIM)){
-    outGrimM1[i] <- grimTest(n = datGRIM[i,]$nExp, mean = datGRIM[i,]$mExp, items = datGRIM[i,]$items, decimals = 2)
-    outGrimM2[i] <- grimTest(n = datGRIM[i,]$nCtrl, mean = datGRIM[i,]$mCtrl, items = datGRIM[i,]$items, decimals = 2)
+    outGrimM1[i] <- grimTest(n = datGRIM[i,]$n1, mean = datGRIM[i,]$mean1, items = datGRIM[i,]$items, decimals = 2)
+    outGrimM2[i] <- grimTest(n = datGRIM[i,]$n2, mean = datGRIM[i,]$mean2, items = datGRIM[i,]$items, decimals = 2)
   }
   
   datGRIM$outGrimM1 <- outGrimM1
@@ -476,7 +476,7 @@ grim <- function(dat){
   datGRIM$inconsistenciesCountGRIM <- datGRIM %$% abs(outGrimM1 + outGrimM2 - 2)
   
   dat <<- datGRIM %>% 
-    select(result, inconsistenciesCountGRIM) %>%
+    select(result, outGrimM1, outGrimM2, inconsistenciesCountGRIM) %>%
     left_join(dat, ., by = "result", keep = FALSE)
 }
 
@@ -484,17 +484,17 @@ grimmer <- function(dat){
   dat <- dat %>% mutate(items = ifelse(is.na(items), 0, items))
   outGrimmerSD1 <- NA
   outGrimmerSD2 <- NA
-  datGRIM <- dat %>% filter(complete.cases(nExp, nCtrl, mExp, mCtrl, sdExp, sdCtrl, items))
+  datGRIM <- dat %>% filter(complete.cases(n1, n2, mean1, mean2, sd1, sd2, items))
   for(i in 1:nrow(datGRIM)){
-    outGrimmerSD1[i] <- grimmerTest(n = datGRIM[i,]$nExp, mean = datGRIM[i,]$mExp, SD = datGRIM[i,]$sdExp, items = datGRIM[i,]$items, decimals_mean = 2, decimals_SD = 2)
-    outGrimmerSD2[i] <- grimmerTest(n = datGRIM[i,]$nCtrl, mean = datGRIM[i,]$mCtrl, SD = datGRIM[i,]$sdCtrl, items = datGRIM[i,]$items, decimals_mean = 2, decimals_SD = 2)
+    outGrimmerSD1[i] <- grimmerTest(n = datGRIM[i,]$n1, mean = datGRIM[i,]$mean1, SD = datGRIM[i,]$sd1, items = datGRIM[i,]$items, decimals_mean = 2, decimals_SD = 2)
+    outGrimmerSD2[i] <- grimmerTest(n = datGRIM[i,]$n2, mean = datGRIM[i,]$mean2, SD = datGRIM[i,]$sd2, items = datGRIM[i,]$items, decimals_mean = 2, decimals_SD = 2)
   }
   datGRIM$outGrimmerSD1 <- outGrimmerSD1
   datGRIM$outGrimmerSD2 <- outGrimmerSD2
-  datGRIM$inconsistenciesCountGRIMMER <- datGRIM %$% ifelse((is.na(seExp) & is.na(seCtrl)), abs(outGrimmerSD1 + outGrimmerSD2 - 2), NA)
+  datGRIM$inconsistenciesCountGRIMMER <- datGRIM %$% abs(outGrimmerSD1 + outGrimmerSD2 - 2)
   
   dat <<- datGRIM %>% 
-    select(result, inconsistenciesCountGRIMMER) %>%
+    select(result, outGrimmerSD1, outGrimmerSD2, inconsistenciesCountGRIMMER) %>%
     left_join(dat, ., by = "result", keep = FALSE)
 }
 # General Grim Test -------------------------------------------------------

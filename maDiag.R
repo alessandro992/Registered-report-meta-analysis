@@ -5,48 +5,48 @@
 #+eval = FALSE
 # Initial outlier diagnostics
 # Univariate MA
-ma.uni <- dataMind %$% rma(yi = yi, vi = vi, method = "REML", slab = result)
+maUniNature <- dataNature %$% rma(yi = yi, vi = vi, method = "REML", slab = result)
 
 #+eval = FALSE
 # MA diagnostics
-baujat(ma.uni)
+baujat(maUniNature, symbol = "slab")
 
 #+eval = FALSE
 #fit FE model to all possible subsets
-gosh.plot <- gosh(ma.uni, progbar = TRUE, subsets = 1000, parallel = "multicore")
-plot(gosh.plot, out = 45, breaks = 50) # Testing the influence of single outliers
+goshPlotNature <- gosh(maUniNature, progbar = TRUE, subsets = 1000, parallel = "multicore")
+plot(goshPlotNature, out = 45, breaks = 50) # Testing the influence of single outliers
 
 #+eval = FALSE
 # Influence diagnostics
-inf <- influence(ma.uni, progbar = T)
+infNature <- influence(maUniNature, progbar = T)
 
 #+eval = FALSE
 ### Plot the influence diagnostics
-plot(inf)
+plot(infNature)
 
 #'# For "emotional social support" studies
 
 #+eval = FALSE
 # Initial outlier diagnostics
 # Univariate MA
-ma.uni <- dataBio %$% rma(yi = yi, vi = vi, method = "REML", slab = result)
+maUniSocial <- dataSocial %$% rma(yi = yi, vi = vi, method = "REML", slab = result)
 
 #+eval = FALSE
 # MA diagnostics
-baujat(ma.uni)
+baujat(maUniSocial, symbol = "slab")
 
 #+eval = FALSE
 #fit FE model to all possible subsets
-gosh.plot <- gosh(ma.uni, progbar = TRUE, subsets = 1000, parallel = "multicore")
-plot(gosh.plot, out = 12, breaks = 50) # Testing the influence of single outliers
+goshPlotSocial <- gosh(maUniSocial, progbar = TRUE, subsets = 1000, parallel = "multicore")
+plot(goshPlotSocial, out = 12, breaks = 50) # Testing the influence of single outliers
 
 #+eval = FALSE
 # Influence diagnostics
-inf <- influence(ma.uni, progbar = T)
+infSocial <- influence(maUniSocial, progbar = T)
 
 #+eval = FALSE
 ### Plot the influence diagnostics
-plot(inf)
+plot(infSocial)
 
 #+eval = TRUE
 # Outlier removal in case of a need
@@ -58,10 +58,11 @@ plot(inf)
 
 # For being in nature studies
 dat %>% filter(strategy == 1) %$% table(is.na(.$yi))
+dat %>% filter(strategy == 1) %>% missmap(rank.order = TRUE, margins = c(10, 0), legend = F)
 
 # For social support studies
 dat %>% filter(strategy == 2) %$% table(is.na(.$yi))
+dat %>% filter(strategy == 2) %>% missmap(rank.order = TRUE, margins = c(10, 0), legend = F)
 
 #'### Percentage of missing data overall
 # dat %>% filter(strategy == 2) %$% paste(round(sum(is.na(.))/prod(dim(.))*100, 3), "%", sep = "") # insert column numbers
-dat %>% filter(strategy == 2) %>% missmap(rank.order = TRUE, margins = c(10, 0), legend = F)

@@ -8,16 +8,15 @@ if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, quietly = TRUE, warn.conflicts = FALSE, character.only = TRUE)
 select <- dplyr::select
 
-datNature <- read_delim("beingNature.csv", delim = ";", trim_ws = T)
-datSocial <- read_delim("socialSupport.csv", delim = ";", trim_ws = T)
+datNature <- read_delim("dataNature.csv", delim = ",", trim_ws = T)
+datSocial <- read_delim("dataSocialSupport.csv", delim = ",", trim_ws = T)
 dat <- bind_rows(datNature, datSocial)
 
-dat <- dat %>% modify_at(., .at = c("F", "beta", "t", "r", "chiSq", "df1", "df2", "sd1", "sd2", "se1", "se2", "n1", "n2", "mean1", "mean2", "published", "researchDesign", "publicationYear", "nMale", "nFemale"), .f = ~as.numeric(as.character(.)))
+dat <- dat %>% modify_at(., .at = c("F", "beta", "t", "r", "chiSq", "df1", "df2", "sd1", "sd2", "se1", "se2", "n1", "n2", "mean1", "mean2", "published", "researchDesign", "pubYear", "nMale", "nFemale"), .f = ~as.numeric(as.character(.)))
+dat$result <- 1:nrow(dat)
 
 # Some data wrangling to get the right type of data (formatting of the raw dataset in Excel introduces a lot of junk otherwise)
 dat$pReported <- as.numeric(as.character(gsub("[^0-9.]", "", dat$pReported)))
-
-# Transform moderators into factors and specify contrast coding .5, -.5
 
 # Which designs are present?
 table(dat$researchDesign, useNA="ifany")
@@ -29,11 +28,14 @@ dat$percFemale <- ifelse(is.na(dat$percFemale), dat$nFemale/(dat$nFemale + dat$n
 dat <- dat %>% mutate(sd1 = ifelse(is.na(sd1) & !is.na(se1), se1*sqrt(n1), sd1),
                       sd2 = ifelse(is.na(sd2) & !is.na(se2), se2*sqrt(n2), sd2))
 
+# Assume balanced design when cell sizes not reported
+dat <- dat %>% mutate(n1 = ifelse(!is.na(mean1) & !is.na(nTotal) & is.na(n1), nTotal/2, n1),
+                      n2 = ifelse(!is.na(mean2) & !is.na(nTotal) & is.na(n2), nTotal/2, n2))
 
 dat <- escalc(measure = "SMD", m1i = mean1, m2i = mean2, sd1i = sd1, sd2i = sd2, n1i = n1, n2i = n2, data = dat, include = researchDesign %in% c(1, 2))
 dat[dat$researchDesign == 3,]$yi <- dat %>% filter(researchDesign == 3) %$% escalc(measure = "SMCC", m1i = mean1, m2i = mean2, sd1i = sd1, sd2i = sd2, ni = n1, ri = c(rep(rmCor, nrow(.))))$yi
 dat[dat$researchDesign == 3,]$vi <- dat %>% filter(researchDesign == 3) %$% escalc(measure = "SMCC", m1i = mean1, m2i = mean2, sd1i = sd1, sd2i = sd2, ni = n1, ri = c(rep(rmCor, nrow(.))))$vi
-dat <- dat %>% mutate(yi = abs(yi) * predictedDirection)
+dat <- dat %>% mutate(yi = abs(yi) * directionEffect)
 dat <- dat %>% rowwise %>% mutate(p = case_when(researchDesign %in% c(1, 2) ~  as.numeric(round(tTestSummary(mean1, mean2, sd1, sd2, n1, n2, withinSS = FALSE)["p-value"], 5)),
                                                 researchDesign == 3 ~ as.numeric(round(tTestSummary(mean1, mean2, sd1, sd2, n1, n2, withinSS = TRUE)["p-value"], 5)))) %>% data.frame()
 
@@ -46,32 +48,31 @@ dat$useCellN <- NA
 dat$paperID
 dat$study <- paste(dat$paperID, "/", dat$studyID, sep = "")
 
-# F-Test between with df1 == 1 ---------------------------------------------------------------------
+# # F-Test between with df1 == 1 ---------------------------------------------------------------------
+# # Specify the design, compute ni and p
+# dat <- dat %>% mutate(finalDesign = case_when(!is.na(F) & !is.na(df1) & !is.na(df2) & df1 == 1 ~ "F1"))
+# dat <- dat %>% mutate(ni = ifelse(finalDesign == "F1", df2 + 2, NA))
+# 
+# # Decide whether n1+n2 approximately corresponds to the reported df (in order for n1 and n2 be used in equations).
+# dat <- dat %>% mutate(useCellN = ifelse((dat$n1 + dat$n2) >= (dat$ni - 2) & (dat$n1 + dat$n2) <= (dat$ni + 2), 1, 0),
+#                       useCellN = ifelse(is.na(useCellN), 0, useCellN))
+# 
+# # Compute ES and var based on total ni. Note to self: mutate not working due to a glitch in handling NAs by esc.
+# dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign),]$gConv <- dat %>% filter(dat$finalDesign == "F1") %$% esc_f(f = F, totaln = df2 + 2, es.type = "g")$es
+# dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign),]$gVarConv <- dat %>% filter(dat$finalDesign == "F1") %$% esc_f(f = F, totaln = df2 + 2, es.type = "g")$var
+# 
+# # Compute ES and var based on n1 and n2 if available. Note to self: mutate not working due to a glitch in handling NAs by esc.
+# dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gConv <- dat %>% filter(dat$finalDesign == "F1" & dat$useCellN == 1) %$% esc_f(f = F, grp1n = n1, grp2n = n2, es.type = "g")$es
+# dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gVarConv <- dat %>% filter(dat$finalDesign == "F1" & dat$useCellN == 1) %$% esc_f(f = F, grp1n = n1, grp2n = n2, es.type = "g")$var
+# 
+# # Show the converted ESs
+# dat %>% filter(finalDesign == "F1") %>% select(gConv, gVarConv, researchDesign, df2, n1, n2, ni, useCellN)
+
+# t-tests between or t for B in continuous designs ---------------------------------------------------------
 # Specify the design, compute ni and p
-dat <- dat %>% mutate(finalDesign = case_when(!is.na(F) & !is.na(df1) & !is.na(df2) & df1 == 1 ~ "F1"))
-dat <- dat %>% mutate(ni = ifelse(finalDesign == "F1", df2 + 2, NA))
-
-# Decide whether n1+n2 approximately corresponds to the reported df (in order for n1 and n2 be used in equations).
-dat <- dat %>% mutate(useCellN = ifelse((dat$n1 + dat$n2) >= (dat$ni - 2) & (dat$n1 + dat$n2) <= (dat$ni + 2), 1, 0),
-                      useCellN = ifelse(is.na(useCellN), 0, useCellN))
-
-# Compute ES and var based on total ni. Note to self: mutate not working due to a glitch in handling NAs by esc.
-dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign),]$gConv <- dat %>% filter(dat$finalDesign == "F1") %$% esc_f(f = F, totaln = df2 + 2, es.type = "g")$es
-dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign),]$gVarConv <- dat %>% filter(dat$finalDesign == "F1") %$% esc_f(f = F, totaln = df2 + 2, es.type = "g")$var
-
-# Compute ES and var based on n1 and n2 if available. Note to self: mutate not working due to a glitch in handling NAs by esc.
-dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gConv <- dat %>% filter(dat$finalDesign == "F1" & dat$useCellN == 1) %$% esc_f(f = F, grp1n = n1, grp2n = n2, es.type = "g")$es
-dat[dat$finalDesign == "F1" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gVarConv <- dat %>% filter(dat$finalDesign == "F1" & dat$useCellN == 1) %$% esc_f(f = F, grp1n = n1, grp2n = n2, es.type = "g")$var
-
-# Show the converted ESs
-dat %>% filter(finalDesign == "F1") %>% select(gConv, gVarConv, researchDesign, df2, n1, n2, ni, useCellN)
-
-#View(dat[,c("result", "mean1", "mean2", "sd1", "sd2", "yi", "vi", "gConv")])
-
-# t-tests between ---------------------------------------------------------
-# Specify the design, compute ni and p
-dat <- dat %>% mutate(finalDesign = ifelse(!is.na(t) & !is.na(df2), "tBtw", finalDesign))
-dat <- dat %>% mutate(ni = ifelse(finalDesign == "tBtw", df2 + 2, ni))
+dat <- dat %>% mutate(finalDesign = ifelse(!is.na(t) & !is.na(df2), "tBtw", NA),
+                      ni = ifelse(finalDesign == "tBtw", df2 + 2, NA),
+                      p = ifelse(finalDesign == "tBtw" & is.na(p), 2*pt(abs(t), df2, lower.tail = FALSE), p))
 
 # Decide whether n1+n2 approximately corresponds to the reported df (in order for n1 and n2 be used in equations).
 dat <- dat %>% mutate(useCellN = ifelse((dat$n1 + dat$n2) >= (dat$ni - 2) & (dat$n1 + dat$n2) <= (dat$ni + 2), 1, useCellN),
@@ -82,19 +83,55 @@ dat[dat$finalDesign == "tBtw" & !is.na(dat$finalDesign),]$gConv <- dat %>% filte
 dat[dat$finalDesign == "tBtw" & !is.na(dat$finalDesign),]$gVarConv <- dat %>% filter(dat$finalDesign == "tBtw") %$% esc_t(t = abs(t), totaln = df2 + 2, es.type = "g")$var
 
 # Compute ES and var based on n1 and n2 if available. Note to self: mutate not working due to a glitch in handling NAs by esc.
-dat[dat$finalDesign == "tBtw" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gConv <- dat %>% filter(dat$finalDesign == "tBtw" & dat$useCellN == 1) %$% esc_t(t = abs(t), grp1n = n1, grp2n = n2, es.type = "g")$es
-dat[dat$finalDesign == "tBtw" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gVarConv <- dat %>% filter(dat$finalDesign == "tBtw" & dat$useCellN == 1) %$% esc_t(t = abs(t), grp1n = n1, grp2n = n2, es.type = "g")$var
+# dat[dat$finalDesign == "tBtw" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gConv <- dat %>% filter(dat$finalDesign == "tBtw" & dat$useCellN == 1) %$% esc_t(t = abs(t), grp1n = n1, grp2n = n2, es.type = "g")$es
+# dat[dat$finalDesign == "tBtw" & !is.na(dat$finalDesign) & dat$useCellN == 1,]$gVarConv <- dat %>% filter(dat$finalDesign == "tBtw" & dat$useCellN == 1) %$% esc_t(t = abs(t), grp1n = n1, grp2n = n2, es.type = "g")$var
 
 # Show the converted ESs
-dat %>% filter(finalDesign == "tBtw") %>% select(gConv, gVarConv, researchDesign, df2, n1, n2, ni, useCellN)
+dat %>% filter(finalDesign == "tBtw") %>% select(t, gConv, gVarConv, researchDesign, df2, n1, n2, ni, useCellN)
+
+# Correlation -------------------------------------------------------------
+# Specify the design, convert rho to r, and compute ni and p
+dat <- dat %>% mutate(finalDesign = ifelse((!is.na(r) | !is.na(r_s)) & (!is.na(df2) | !is.na(nTotal)), "cor", finalDesign),
+                      r = ifelse(is.na(r) & !is.na(r_s), abs(2*sin(r_s*pi/6)), abs(r)),
+                      ni = ifelse(finalDesign == "cor" & is.na(ni), ifelse(!is.na(df2), df2 + 2, nTotal), ni),
+                      p = ifelse(finalDesign == "cor" & is.na(p), 2*pt(abs(r*sqrt(ni - 2 / (1 - r^2))), ni - 2, lower.tail = FALSE), p))
+
+dat <- dat %>% mutate(yi = ifelse(finalDesign == "cor" & is.na(yi), abs(escalc(measure = "COR", ri = r, ni = ni, data = dat)$yi) * directionEffect, yi),
+                      vi = ifelse(finalDesign == "cor" & is.na(vi), escalc(measure = "COR", ri = r, ni = ni, data = dat)$vi, vi))
+
+# Show the converted ESs
+dat %>% filter(finalDesign == "cor") %>% select(yi, vi, r, r_s, directionEffect, ni, p)
+
+# Betas in between-subjects designs ---------------------------------------
+
+#Betas in between-subjects designs (in ML, beta considered as covariate/confounding adjusted r, then using r to d conversion)
+dat <- dat %>% mutate(finalDesign = ifelse(!is.na(dat$beta) & (!is.na(dat$df2) | !is.na(dat$nTotal)), "regression", finalDesign))
+dat <- dat %>% mutate(ni = ifelse(finalDesign == "regression", df2 + 2, ni))
+
+# dat[dat$finalDesign == "regression", ] %<>% mutate(
+#   t.from.beta = abs(beta)*sqrt(df2 / (1 - beta^2)),
+#   gConv = ((2*abs(beta))/sqrt(1-beta^2))*(1 - (3/(4*df2 - 1))),
+#   ni = df2 + 2,
+#   beta.var = escalc(measure = "COR", ri = beta, ni = df2 + 2, data = dat[dat$finalDesign == "regression", ])$vi,
+#   gVarConv = (1 - (3/(4*df2 - 1))) * (4 * beta.var)/((1 - beta^2)^3),
+#   p = 2*pt(abs(t.from.beta), df2, lower.tail=FALSE)
+# )
+
+# Show the converted ESs
+dat %>% filter(finalDesign == "regression") %>% select(gConv, beta, gVarConv, finalDesign, ni)
+
+# Create a "result label" to be used as an input for p-curve analysis
+dat[dat$Use.for.Bias.Test == "Yes" & (dat$Design == "Between" | dat$Design == "Continuous") & !is.na(dat$beta) & !is.na(dat$p.reported), "biasTest"] <- "Beta.between"
+# dat$label[dat$biasTest == "Beta.between"] <- paste(dat[dat$biasTest == "Beta.between",]$paperID, "/", dat[dat$biasTest == "Beta.between",]$Study.Indicator, "/", dat[dat$biasTest == "Beta.between",]$Variable.Indicator, ": ",
+#                                                       "Z=", qnorm(1-dat[dat$biasTest == "Beta.between",]$p.reported/2), sep = "")
+
 
 dat <- dat %>% mutate(ni = ifelse(is.na(ni) & !is.na(yi), n1 + n2, ni),
                       nTerm = 2/ni)
-dat$result <- 1:nrow(dat)
 
-# # Multiply the ES by -1 if not in the predicted direction
-dat <- dat %>% mutate(yi = ifelse(is.na(yi) & !is.na(gConv) & !is.na(predictedDirection), predictedDirection * gConv, yi),
-                      vi = ifelse(is.na(vi) & !is.na(gVarConv) & !is.na(predictedDirection), gVarConv, vi),
+# # Multiply the ES by -1 if in the opposite direction
+dat <- dat %>% mutate(yi = ifelse(is.na(yi) & !is.na(gConv) & !is.na(directionEffect), directionEffect * gConv, yi),
+                      vi = ifelse(is.na(vi) & !is.na(gVarConv) & !is.na(directionEffect), gVarConv, vi),
                       label = paste(paperID, "/", studyID, "/", effectID, sep = ""),
                       stressAffective = as.factor(ifelse(!is.na(affect) | !is.na(stressComponentType), 1, ifelse(!is.na(affectiveConsequencesStress), 2, NA))),
                       stressCompRecoded = as.factor(case_when(stressComponentType %in% c(1:4) | !is.na(affect) ~ 1,
@@ -106,96 +143,23 @@ grim(dat)
 grimmer(dat)
 
 # Subset and create data objects
-dat$useMA <- 1
+dat$useMeta <- 1
 dat <- dat %>% filter_all(any_vars(!is.na(.)))
 
-dataNature <- dat %>% filter(strategy == 1 &
-                             !is.na(yi) &
-                             !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                             !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                             robOverall != 3 &
-                             timingEffect == 1)
-dataSocial <- dat %>% filter(strategy == 2 &
-                            !is.na(yi) &
-                            !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                            !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                            robOverall != 3 &
-                            timingEffect == 1)
-datIncluded <- dat %>% filter(!is.na(yi) &
-                                !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                                !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                                robOverall != 3 &
-                                timingEffect == 1 &
-                                !result %in% c())
+dataNature <- dat %>% filter(strategy == 1 & !is.na(yi))
+dataSocial <- dat %>% filter(strategy == 2 & !is.na(yi))
+dataNatureRoB <- dataNature %>% 
+  mutate_at(vars(robDomain1:robOverall), funs(dplyr::recode(., '1' = 'Low', '2' = 'Some concerns', '3' = 'High'))) %>% 
+  filter(!is.na(yi)) %>% 
+  select(study, robDomain1, robDomain2, robDomain3, robDomain4, robDomain5, robOverall, useMeta)
+dataSocialRoB <- dataSocial %>% 
+  mutate_at(vars(robDomain1:robOverall), funs(dplyr::recode(., '1' = 'Low', '2' = 'Some concerns', '3' = 'High'))) %>% 
+  filter(!is.na(yi)) %>% 
+  select(study, robDomain1, robDomain2, robDomain3, robDomain4, robDomain5, robOverall, useMeta)
 
 # Remove outliers (based on the results from the maDiag script)
-dataNature <- dataNature %>% filter(!result %in% c())
-dataSocial <- dataSocial %>% filter(!result %in% c())
-
-# Data objects including inconsistent effects
-dataNatureIncon <- dat %>% filter(strategy == 1 &
-                             !is.na(yi) &
-                             robOverall != 3 &
-                             timingEffect == 1)
-dataSocialIncon <- dat %>% filter(strategy == 2 &
-                            !is.na(yi) &
-                            robOverall != 3 &
-                            timingEffect == 1)
-
-# dataNatureIncon <- dataNatureIncon %>% filter(!result %in% c())
-# dataSocialIncon <- dataSocialIncon %>% filter(!result %in% c())
-
-# Data objects including studies with all levels of risk of bias
-dataNatureRob <- dat %>% filter(strategy == 1 &
-                             !is.na(yi) &
-                             !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                             !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                             timingEffect == 1)
-dataSocialRob <- dat %>% filter(strategy == 2 &
-                            !is.na(yi) &
-                            !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                            !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                            timingEffect == 1)
-
-# dataNatureRob <- dataNatureRob %>% filter(!result %in% c())
-# dataSocialRob <- dataSocialRob %>% filter(!result %in% c())
-
-# Data objects including effects based on immediate as well as delayed posttest
-dataNaturePost <- dat %>% filter(strategy == 1 &
-                             !is.na(yi) &
-                             !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                             !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                             robOverall != 3)
-dataSocialPost <- dat %>% filter(strategy == 2 &
-                            !is.na(yi) &
-                            !(inconsistenciesCountGRIMMER %in% c(1, 2)) & 
-                            !(inconsistenciesCountGRIM %in% c(1, 2)) &
-                            robOverall != 3)
-
-# dataNaturePost <- dataNaturePost %>% filter(!result %in% c())
-# dataSocialPost <- dataSocialPost %>% filter(!result %in% c())
-
-# Correlation -------------------------------------------------------------
-
-# # Specify the design, compute ni and p
-# dat <- dat %>% mutate(finalDesign = ifelse(!is.na(r) & !is.na(df2), "cor", finalDesign))
-#
-# # Compute ES, var, ni, and p
-# dat[dat$finalDesign == "cor", ] <- dat[dat$finalDesign == "cor", ] %>% mutate(
-#   t.from.r = abs(r)*sqrt(df2 / (1 - r^2)),
-#   gConv = ((2*abs(r))/sqrt(1-r^2))*(1 - (3/(4*df2 - 1))),
-#   ni = df2 + 2,
-#   rVar = escalc(measure = "COR", ri = r, ni = df2 + 2, data = dat[dat$finalDesign == "cor", ])$vi,
-#   gVarConv = (1 - (3/(4*df2 - 1))) * (4 * rVar/(1 - r^2)^3),
-#   p = 2*pt(abs(t.from.r), df2, lower.tail=FALSE)
-# )
-#
-# # Create a "result label" to be used as an input for p-curve analysis
-# dat <- dat %>% mutate(label = ifelse(finalDesign == "cor" & focalVariable == 1, paste(paperID, "/", studyID, "/", effectID, ": ",
-#                                                                                       "r(", df2, ")=", r, sep = ""), label))
-# # Show the converted ESs
-# dat %>% filter(finalDesign == "cor") %>% select(gConv, gVarConv, r, researchDesign, df2, ni, label)
-
+dataNature <- dataNature %>% filter(!result %in% outliersNature)
+dataSocial <- dataSocial %>% filter(!result %in% outliersSocial)
 
 # # Within-subjects design, ES based on t-distribution ----------------------
 # 
@@ -225,27 +189,6 @@ dataSocialPost <- dat %>% filter(strategy == 2 &
 # dat$gConv[266:270] <- (1 - (3/(4*dat$n.rep[266:270] - 3))) * dat$d.reported[266:270]
 # dat$gVarConv[266:270] = (1 - (3/(4*dat$n.rep[266:270] - 3))) * ((dat$n.rep[266:270])/(dat$n.rep[266:270]/2 * dat$n.rep[266:270]/2) + (dat$d.reported[266:270]^2)/(2 * (dat$n.rep[266:270])))
 # 
-# # Betas in between-subjects designs ---------------------------------------
-# 
-# #Betas in between-subjects designs (in ML, beta considered as covariate/confounding adjusted r, then using r to d conversion)
-# dat[dat$Use.for.Meta == "Yes" & (dat$Design == "Between" | dat$Design == "Continuous") & !is.na(dat$beta) & !is.na(dat$df2), "finalDesign"] <- "Beta.between"
-# 
-# dat[dat$finalDesign == "Beta.between", ] %<>% mutate(
-#   t.from.beta = abs(beta)*sqrt(df2 / (1 - beta^2)),
-#   gConv = ((2*abs(beta))/sqrt(1-beta^2))*(1 - (3/(4*df2 - 1))),
-#   ni = df2 + 2,
-#   beta.var = escalc(measure = "COR", ri = beta, ni = df2 + 2, data = dat[dat$finalDesign == "Beta.between", ])$vi,
-#   gVarConv = (1 - (3/(4*df2 - 1))) * (4 * beta.var)/((1 - beta^2)^3),
-#   p = 2*pt(abs(t.from.beta), df2, lower.tail=FALSE)
-# )
-# 
-# # Show the converted ESs
-# dat %>% filter(finalDesign == "Beta.between") %>% select(gConv, beta, gVarConv, finalDesign, ni)
-# 
-# # Create a "result label" to be used as an input for p-curve analysis
-# dat[dat$Use.for.Bias.Test == "Yes" & (dat$Design == "Between" | dat$Design == "Continuous") & !is.na(dat$beta) & !is.na(dat$p.reported), "biasTest"] <- "Beta.between"
-# dat$label[dat$biasTest == "Beta.between"] <- paste(dat[dat$biasTest == "Beta.between",]$paperID, "/", dat[dat$biasTest == "Beta.between",]$Study.Indicator, "/", dat[dat$biasTest == "Beta.between",]$Variable.Indicator, ": ",
-#                                                       "Z=", qnorm(1-dat[dat$biasTest == "Beta.between",]$p.reported/2), sep = "")
 # 
 # # chi^2 -------------------------------------------------------------------
 # 
