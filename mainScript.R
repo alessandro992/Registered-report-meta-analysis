@@ -13,7 +13,7 @@
 
 #' **This is the supplementary analytic output for the paper Stress regulation via being in nature and social support in adults: a meta-analysis**
 #' 
-#' **It reports detailed results for all models reported in the paper. The analytic R script by which this html report was generated can be found on the project's OSF page at: ######**
+#' **It reports detailed results for all models reported in the paper. The analytic R script by which this html report was generated can be found on the project's OSF page at: https://osf.io/6wpav/**
 #' 
 #' ------------------------------------
 #' 
@@ -81,9 +81,6 @@
 # NOTE: Please note that to run the script, you need the development versions of metafor and dmetar packages from github.
 #+ setup, include = FALSE
 knitr::opts_chunk$set(echo=FALSE, warning = FALSE)
-# check with Alessandro if overall RoB was scored correctly
-# subgroup analysis A: if !is.na(affect) | !is.na(stressComponentType)) = 1; if !is.na(affectiveConsequencesStress) = 2
-# subgroup analysis B: if (stressComponentType %in% c(1:4) | !is.na(affect)) ~ 1; stressComponentType = 5 ~ 2; stressComponentType = 6 ~ 3
 
 rm(list = ls())
 
@@ -396,15 +393,13 @@ RVEmodelStratComp <- conf_int(rmaObjectStratComp, vcov = "CR2", test = "z", clus
 list("Model results" = RVEmodelStratComp, "RVE Wald test" = Wald_test(rmaObjectStratComp, constraints = constrain_equal(1:2), vcov = "CR2"))
 
 
-#'### Numerical inconsistencies in reported p-values STATCHECK FINISH
+# #'### Numerical inconsistencies in reported p-values STATCHECK FINISH
 # nrow(statcheck) # how many results were analyzed
 # length(unique(statcheck$Source)) # how many papers reported results in APA format
 # prop.table(table(statcheck$Error)) # how many statcheck errors
 # table(statcheck$DecisionError)[2]/table(statcheck$Error)[2] # how many statcheck errors affected the decision
 # statcheck %>% filter(Error == TRUE) %>% select(Source) %>% unique() %>% nrow()/length(unique(statcheck$Source)) # How many papers contained statcheck errors
 
-#########################
-#########################
 #########################
 
 #'# Moderator/sensitivity analyses
@@ -447,33 +442,32 @@ for(i in 1:length(dataObjects)){
 stressAffectConseq <- setNames(stressAffectConseq, nm = namesObjects)
 stressAffectConseq
 
-#' #'### Forest plots
-#' #'#### Being in nature
-#' dataNature %>% filter(stressAffective == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Being in nature (StressResponse = 1)")
-#' dataNature %>% filter(stressAffective == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Being in nature (AffectiveConsequences = 2)")
-#' #'#### Social support
-#' dataSocial %>% filter(stressAffective == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Social support (StressResponse = 1)")
-#' dataSocial %>% filter(stressAffective == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Social support (AffectiveConsequences = 2)")
-#' 
-#' #'### Forest plots
-#' #'#### Being in nature
-#' dataNature %>% filter(stressCompRecoded == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Being in nature (AffectiveComponent)")
-#' dataNature %>% filter(stressCompRecoded == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Being in nature (CognititveComponent)")
-#' dataNature %>% filter(stressCompRecoded == 3) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Being in nature (PhysiologicalComponent)")
-#' #'#### Social support
-#' dataSocial %>% filter(stressCompRecoded == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Social support (AffectiveComponent)")
-#' dataSocial %>% filter(stressCompRecoded == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Social support (CognititveComponent)")
-#' dataSocial %>% filter(stressCompRecoded == 3) %$% forest(yi, vi, subset=order(vi), slab = label)
-#' title("Social support (PhysiologicalComponent)")
+#'## Subgroup analysis for stress vs affective consequences
+stressComponentClusters <- list(NA)
+for(i in 1:length(dataObjects)){
+ viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
+ rmaObject <- rma.mv(yi ~ 0 + as.factor(stressCompRecoded), V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
+ RVEmodel <- conf_int(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
+ stressComponentClusters[[i]] <- list("Number of included effects per category" = table(dataObjects[[i]]$stressCompRecoded), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(1:2), vcov = "CR2"))
+}
+stressComponentClusters <- setNames(stressComponentClusters, nm = namesObjects)
+stressComponentClusters
+
+#'### Forest plots
+#'#### Being in nature
+dataNature %>% filter(stressCompRecoded == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
+title("Being in nature (AffectiveComponent)")
+# dataNature %>% filter(stressCompRecoded == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
+# title("Being in nature (CognititveComponent)")
+dataNature %>% filter(stressCompRecoded == 3) %$% forest(yi, vi, subset=order(vi), slab = label)
+title("Being in nature (PhysiologicalComponent)")
+#'#### Social support
+dataSocial %>% filter(stressCompRecoded == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
+title("Social support (AffectiveComponent)")
+# dataSocial %>% filter(stressCompRecoded == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
+# title("Social support (CognititveComponent)")
+dataSocial %>% filter(stressCompRecoded == 3) %$% forest(yi, vi, subset=order(vi), slab = label)
+title("Social support (PhysiologicalComponent)")
 
 # Moderator analysis for the number of intervention sessions
 # numberIntervention <- list(NA)
@@ -487,7 +481,7 @@ stressAffectConseq
 # numberIntervention <- setNames(numberIntervention, nm = namesObjects)
 # numberIntervention
 
-#'## Moderator analysis for the frequency of intervention
+# #'## Moderator analysis for the frequency of intervention
 # freqIntervention <- list(NA)
 # for(i in 1:length(dataObjects)){
 #  viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
@@ -499,7 +493,7 @@ stressAffectConseq
 # freqIntervention <- setNames(freqIntervention, nm = namesObjects)
 # freqIntervention
 
-#'## Moderator analysis for the duration of intervention
+# #'## Moderator analysis for the duration of intervention
 # durationIntervention <- list(NA)
 # for(i in 1:length(dataObjects)){
 #  viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
@@ -510,16 +504,17 @@ stressAffectConseq
 # durationIntervention <- setNames(durationIntervention, nm = namesObjects)
 # durationIntervention
 
-#'## Subgroup analysis for stress vs affective consequences
-# stressComponentClusters <- list(NA)
-# for(i in 1:length(dataObjects)){
-#  viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
-#  rmaObject <- rma.mv(yi ~ 0 + as.factor(stressCompRecoded), V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
-#  RVEmodel <- conf_int(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
-#  stressComponentClusters[[i]] <- list("Number of included effects per category" = table(dataObjects[[i]]$stressCompRecoded), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(1:3), vcov = "CR2"))
-# }
-# stressComponentClusters <- setNames(stressComponentClusters, nm = namesObjects)
-# stressComponentClusters
+# #'### Forest plots
+# #'#### Being in nature
+# dataNature %>% filter(stressAffective == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
+# title("Being in nature (StressResponse = 1)")
+# dataNature %>% filter(stressAffective == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
+# title("Being in nature (AffectiveConsequences = 2)")
+# #'#### Social support
+# dataSocial %>% filter(stressAffective == 1) %$% forest(yi, vi, subset=order(vi), slab = label)
+# title("Social support (StressResponse = 1)")
+# dataSocial %>% filter(stressAffective == 2) %$% forest(yi, vi, subset=order(vi), slab = label)
+# title("Social support (AffectiveConsequences = 2)")
 
 # Record session info
 sessionInfo()

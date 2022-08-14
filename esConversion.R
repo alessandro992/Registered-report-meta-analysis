@@ -133,6 +133,8 @@ dat <- dat %>% mutate(ni = ifelse(is.na(ni) & !is.na(yi), n1 + n2, ni),
 dat <- dat %>% mutate(yi = ifelse(is.na(yi) & !is.na(gConv) & !is.na(directionEffect), directionEffect * gConv, yi),
                       vi = ifelse(is.na(vi) & !is.na(gVarConv) & !is.na(directionEffect), gVarConv, vi),
                       label = paste(paperID, "/", studyID, "/", effectID, sep = ""),
+                      # subgroup analysis A: if !is.na(affect) | !is.na(stressComponentType)) = 1; if !is.na(affectiveConsequencesStress) = 2
+                      # subgroup analysis B: if (stressComponentType %in% c(1:4) | !is.na(affect)) ~ 1; stressComponentType = 5 ~ 2; stressComponentType = 6 ~ 3
                       stressAffective = as.factor(ifelse(!is.na(affect) | !is.na(stressComponentType), 1, ifelse(!is.na(affectiveConsequencesStress), 2, NA))),
                       stressCompRecoded = as.factor(case_when(stressComponentType %in% c(1:4) | !is.na(affect) ~ 1,
                                                               stressComponentType == 5 ~ 2,

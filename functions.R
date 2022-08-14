@@ -276,8 +276,8 @@ powerEst <- function(data = NA, forBiasAdj = TRUE){
   c("Median power for detecting a SESOI of d = .20" = power20sd,
     "Median power for detecting a SESOI of d = .50" = power50sd,
     "Median power for detecting a SESOI of d = .70" = power70sd,
-    "Median power for detecting PET-PEESE estimate" = ifelse(forBiasAdj == TRUE, ifelse(peeseEst > 0, powerPEESEresult, paste("ES estimate in the opposite direction")), "Not calculated"), 
-    "Median power for detecting 4/3PSM estimate" = ifelse(forBiasAdj == TRUE, ifelse(resultSM["est"] > 0, powerSMresult, paste("ES estimate in the opposite direction")), "Not calculated"))
+    "Median power for detecting PET-PEESE estimate" = ifelse(forBiasAdj == TRUE, ifelse(peeseEst * ifelse(exists("side") & side == "left", -1, 1) > 0, powerPEESEresult, paste("ES estimate in the opposite direction")), "Not calculated"), 
+    "Median power for detecting 4/3PSM estimate" = ifelse(forBiasAdj == TRUE, ifelse(resultSM["est"] > 0 * ifelse(exists("side") & side == "left", -1, 1), powerSMresult, paste("ES estimate in the opposite direction")), "Not calculated"))
 }
 
 # Publication bias summary function-------------------------------
@@ -312,7 +312,7 @@ bias <- function(data = NA, rmaObject = NA, runRoBMA = runRoBMAmodel){
   set.seed(1)
   for(i in 1:nIterations){
     modelPuniform <- data[!duplicated.random(data$study) & data$focal == 1 & data$useMeta == 1 & !is.na(data$yi) & !is.na(data$vi),] %$% tryCatch(puni_star(yi = yi, vi = vi, alpha = alpha, side = side, method = "ML"), error = function(e) NULL)
-    resultPuniform[i,] <- ifelse(!is.null(modelPuniform), c("est" = modelPuniform[["est"]], "ciLB" = modelPuniform[["ci.lb"]], "ciUB" = modelPuniform[["ci.ub"]], "p-value" = modelPuniform[["pval.0"]]), NA)
+    resultPuniform[i,] <- if(!is.null(modelPuniform)){c("est" = modelPuniform[["est"]], "ciLB" = modelPuniform[["ci.lb"]], "ciUB" = modelPuniform[["ci.ub"]], "p-value" = modelPuniform[["pval.0"]])} else {NA}
   }
   colnames(resultPuniform) <- c("est", "ciLB", "ciUB", "pvalue")
   puniformOut <- resultPuniform %>% data.frame() %>% na.omit() %>% arrange(est) %>% slice(ceiling(n()/2)) %>% unlist()
