@@ -146,6 +146,8 @@ outliersSocial <- c()
 source("functions.R")
 source("pcurvePlotOption.R")
 source("esConversion.R")
+statcheckBeingInNature <- read_csv("statcheckBeingInNature.csv")
+statcheckSocialSupport <- read_csv("statcheckSocialSupport.csv")
 funnel <- metafor::funnel
 
 # Descriptives ------------------------------------------------------------
@@ -218,6 +220,7 @@ weighted.mean(dataSocial$meanAge, dataSocial$ni, na.rm = T)
 
 
 # Meta-analysis -----------------------------------------------------------
+#'# Meta-analysis results
 namesObjects <- c("Nature", "Social")
 levels(dat$strategy) <- namesObjects
 dataObjects <- list("Nature" = dataNature, "Social" = dataSocial)
@@ -393,12 +396,33 @@ RVEmodelStratComp <- conf_int(rmaObjectStratComp, vcov = "CR2", test = "z", clus
 list("Model results" = RVEmodelStratComp, "RVE Wald test" = Wald_test(rmaObjectStratComp, constraints = constrain_equal(1:2), vcov = "CR2"))
 
 
-# #'### Numerical inconsistencies in reported p-values STATCHECK FINISH
-# nrow(statcheck) # how many results were analyzed
-# length(unique(statcheck$Source)) # how many papers reported results in APA format
-# prop.table(table(statcheck$Error)) # how many statcheck errors
-# table(statcheck$DecisionError)[2]/table(statcheck$Error)[2] # how many statcheck errors affected the decision
-# statcheck %>% filter(Error == TRUE) %>% select(Source) %>% unique() %>% nrow()/length(unique(statcheck$Source)) # How many papers contained statcheck errors
+#'### Numerical inconsistencies in reported p-values
+#'
+#'#### Being in nature
+#'
+#' How many results were analyzed
+nrow(statcheckBeingInNature)
+#' How many papers reported results in APA format
+length(unique(statcheckBeingInNature$Source))
+#' How many statcheck errors
+prop.table(table(statcheckBeingInNature$Error))
+#' What proportion of statcheck errors affected the decision
+table(statcheckBeingInNature$DecisionError)[2]/table(statcheckBeingInNature$Error)[2]
+#' How many papers contained statcheck errors
+statcheckBeingInNature %>% filter(Error == TRUE) %>% select(Source) %>% unique() %>% nrow()/length(unique(statcheckBeingInNature$Source))
+
+#'#### Social support
+#'
+#' How many results were analyzed
+nrow(statcheckSocialSupport)
+#' How many papers reported results in APA format
+length(unique(statcheckSocialSupport$Source))
+#' How many statcheck errors
+prop.table(table(statcheckSocialSupport$Error))
+#' What proportion of statcheck errors affected the decision
+table(statcheckSocialSupport$DecisionError)[2]/table(statcheckSocialSupport$Error)[2]
+#' How many papers contained statcheck errors
+statcheckSocialSupport %>% filter(Error == TRUE) %>% select(Source) %>% unique() %>% nrow()/length(unique(statcheckSocialSupport$Source))
 
 #########################
 
