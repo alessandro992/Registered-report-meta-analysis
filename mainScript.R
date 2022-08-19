@@ -102,9 +102,9 @@ side <- "left"
 test <- "one-tailed"
 
 # No of simulations for the permutation-based bias correction models and p-curve specifically
-nIterations <- 500 # Set to 5 just to make code checking/running fast. For the final analysis, it should be set to 5000.
-nIterationsPcurve <- 50
-nIterationVWsensitivity <- 50 # Number of iterations for the Vevea & Woods (2005) step function model sensitivity analysis 
+nIterations <- 5000 # Set to 5 just to make code checking/running fast. For the final analysis, it should be set to 5000.
+nIterationsPcurve <- 100
+nIterationVWsensitivity <- 100 # Number of iterations for the Vevea & Woods (2005) step function model sensitivity analysis 
 
 # Controls for the multiple-parameter selection models 
 
@@ -128,7 +128,7 @@ stepsDelta <- data.frame(
 # Controls for Robust Bayesian Meta-analysis model
 runRoBMAmodel <- TRUE # FALSE = do not run RoBMA, TRUE = run RoBMA
 robmaChains <- 4 # Number of chains for Robust Bayesian model-averaging approach
-robmaSamples <- 500 # Number of iterations for Robust Bayesian model-averaging approach
+robmaSamples <- 2000 # Number of iterations for Robust Bayesian model-averaging approach
 
 # Controls for PET-PEESE
 nBasedEst <- TRUE # if nBasedEst = TRUE, use the sample-size-based estimator, if FALSE, use the ordinary SE/var.
@@ -536,3 +536,4 @@ title("Social support (PhysiologicalComponent)")
 # Record session info
 sessionInfo()
 save.image(file='sessionObjects.RData')
+
