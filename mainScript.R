@@ -77,12 +77,11 @@
 #' To handle dependencies among the effects, the 4PSM, p-curve, p-uniform are implemented using a permutation-based procedure, randomly selecting only one focal effect (i.e., excluding those which were not coded as being focal) from a single study and iterating nIterations times.
 #' Lastly, the procedure selects the result with the median value of the ES estimate (4PSM, p-uniform) or median z-score of the full p-curve (p-curve).
 
-
-# NOTE: Please note that to run the script, you need the development versions of metafor and dmetar packages from github.
 #+ setup, include = FALSE
 knitr::opts_chunk$set(echo=FALSE, warning = FALSE)
 
 rm(list = ls())
+# NOTE: Please note that to run the script, you need the development versions of metafor and dmetar packages from github.
 
 # Settings ----------------------------------------------------------------
 
@@ -156,7 +155,7 @@ funnel <- metafor::funnel
 #'
 #'## Publication year for Being in nature
 c("from" = min(dataNature$pubYear, na.rm = T), "to" = max(dataNature$pubYear, na.rm = T))
-#'## Publication year
+#'## Publication year  for Social support
 c("from" = min(dataSocial$pubYear, na.rm = T), "to" = max(dataSocial$pubYear, na.rm = T))
 
 #'## Sample sizes
@@ -167,17 +166,13 @@ dataNature %>% filter(!is.na(yi)) %>% nrow()
 dataSocial %>% filter(!is.na(yi)) %>% nrow()
 
 #'### N of studies for Being in nature
-length(unique(dataNature$study)) # overall
-dataNature %>% filter(!is.na(yi)) %$% length(unique(.$study)) # for which ES dat were available
+dataNature %>% filter(!is.na(yi)) %$% length(unique(.$study)) # for which ES data were available
 #'### N of studies for Social support
-length(unique(dataSocial$study)) # overall
 dataSocial %>% filter(!is.na(yi)) %$% length(unique(.$study)) # for which ES dat were available
 
 #'###  N of papers for Being in nature
-length(unique(dataNature$paperID))
 dataNature %>% filter(!is.na(yi)) %$% length(unique(.$paperID))
 #'###  N of papers for Social support
-length(unique(dataSocial$paperID))
 dataSocial %>% filter(!is.na(yi)) %$% length(unique(.$paperID))
 
 #'### Median N across all the ES eligible for meta-analysis for Being in nature
@@ -203,15 +198,13 @@ out <- list(NA)
 for(i in unique(dataNature$study)){
   out[i] <- dataNature %>% filter(study == i) %>% select(percFemale) %>% unlist() %>% median()
 }
-mean(unlist(out), na.rm = T)
-sd(unlist(out), na.rm = T)
+c("Mean" = mean(unlist(out), na.rm = T),  "SD" = sd(unlist(out), na.rm = T))
 #'### Mean gender ratio (percent female) for Social support
 out <- list(NA)
 for(i in unique(dataSocial$study)){
   out[i] <- dataSocial %>% filter(study == i) %>% select(percFemale) %>% unlist() %>% median()
 }
-mean(unlist(out), na.rm = T)
-sd(unlist(out), na.rm = T)
+c("Mean" = mean(unlist(out), na.rm = T),  "SD" = sd(unlist(out), na.rm = T))
 
 #'### Weighted mean age of included samples for Being in nature
 weighted.mean(dataNature$meanAge, dataNature$ni, na.rm = T)
