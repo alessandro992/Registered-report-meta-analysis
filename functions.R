@@ -10,6 +10,13 @@ funnel <- metafor::funnel
 forest <- metafor::forest
 
 # Determine the alpha level / use of one-tailed vs two-tailed test for p-uniform and PET-PEESE
+if (side == "right") {
+  alternativeDef <- "greater"
+} else if (side == "left") {
+  alternativeDef <- "less"
+}
+
+# Determine the "alternative" argument for the selmodel function
 if (test == "one-tailed") {
   alpha <- .10
 } else if (test == "two-tailed") {
@@ -118,7 +125,7 @@ pcurvePerm <- function(data, esEstimate = FALSE, plot = FALSE, nIterations = nIt
 
 # Multiple-parameter selection models -------------------------------------
 # 4/3-parameter selection model (4PSM/3PSM)
-selectionModel <- function(data, minNoPvals = minPvalues, nIteration = nIterations, fallback = FALSE, steps = c(.025, 1), deltas = NA){
+selectionModel <- function(data, minNoPvals = minPvalues, nIteration = nIterations, fallback = FALSE, steps = c(.025, 1), deltas = NA, alternative = alternativeDef){
   data <- data %>% filter(useMeta == 1)
   resultSM <- matrix(ncol = 8, nrow = nIteration)
   set.seed(1)
@@ -128,7 +135,7 @@ selectionModel <- function(data, minNoPvals = minPvalues, nIteration = nIteratio
     # if <= min.pvalues p-values in an interval: return NULL
     pTable <- table(cut(dataSM$p, breaks = c(0, .05, 0.5, 1)))
     if(fallback == TRUE | any(pTable < minNoPvals) | !anyNA(deltas)){
-      threeFit <- tryCatch(selmodel(res, type = "stepfun", steps = steps, delta = deltas, alternative = "greater"),
+      threeFit <- tryCatch(selmodel(res, type = "stepfun", steps = steps, delta = deltas, alternative = alternativeDef),
                            error = function(e) NULL)
       threeOut <- if(is.null(threeFit)){
         next
@@ -137,7 +144,7 @@ selectionModel <- function(data, minNoPvals = minPvalues, nIteration = nIteratio
       }
       out <- threeOut
     } else { 
-      fourFit <- tryCatch(selmodel(res, type = "stepfun", steps = c(.025, .5, 1), alternative = "greater"),
+      fourFit <- tryCatch(selmodel(res, type = "stepfun", steps = c(.025, .5, 1), alternative = alternativeDef),
                           error = function(e) NULL)
       fourOut <- c("est" = fourFit$beta, "se" = fourFit$se, "zvalue" = fourFit$zval, "pvalue" = fourFit$pval, "ciLB" = fourFit$ci.lb, "ciUB" = fourFit$ci.ub, "k" = fourFit$k, "steps" = length(fourFit$steps))  
       if (is.null(fourFit)){

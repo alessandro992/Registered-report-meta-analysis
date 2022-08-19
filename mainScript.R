@@ -139,7 +139,7 @@ acceptableRiskOfBias <- 2
 
 # Sourcing scripts and data, outlier removal -----------------------------------------------------------------
 # Define the vectors with result number of the effect, based on the outlier diagnostics carried out in maDiag.R script
-outliersNature <- c() #38
+outliersNature <- c() #38 is an outlier
 outliersSocial <- c()
 
 source("functions.R")
