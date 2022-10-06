@@ -6,15 +6,17 @@
 # Initial outlier diagnostics
 # Univariate MA
 maUniNature <- dataNature %$% rma(yi = yi, vi = vi, method = "REML", slab = result)
+#dataNature %>% select(paperID, studyID, effectID, result, yi, vi) %>% View()
 
 #+eval = FALSE
 # MA diagnostics
 baujat(maUniNature, symbol = "slab")
+c(38, 44, 45, 46, 48:51)
 
 #+eval = FALSE
 #fit FE model to all possible subsets
 goshPlotNature <- gosh(maUniNature, progbar = TRUE, subsets = 1000, parallel = "multicore")
-plot(goshPlotNature, out = 45, breaks = 50) # Testing the influence of single outliers
+plot(goshPlotNature, out = 44, breaks = 50) # Testing the influence of single outliers
 
 #+eval = FALSE
 # Influence diagnostics
@@ -22,7 +24,7 @@ infNature <- influence(maUniNature, progbar = T)
 
 #+eval = FALSE
 ### Plot the influence diagnostics
-plot(infNature)
+plot(infNature, slab.style = 2)
 
 #'# For "emotional social support" studies
 
@@ -46,7 +48,7 @@ infSocial <- influence(maUniSocial, progbar = T)
 
 #+eval = FALSE
 ### Plot the influence diagnostics
-plot(infSocial)
+plot(infSocial, slab.style = 2)
 
 #+eval = TRUE
 # Outlier removal in case of a need

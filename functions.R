@@ -284,7 +284,7 @@ powerEst <- function(data = NA, forBiasAdj = TRUE){
     "Median power for detecting a SESOI of d = .50" = power50sd,
     "Median power for detecting a SESOI of d = .70" = power70sd,
     "Median power for detecting PET-PEESE estimate" = ifelse(forBiasAdj == TRUE, ifelse(peeseEst * ifelse(exists("side") & side == "left", -1, 1) > 0, powerPEESEresult, paste("ES estimate in the opposite direction")), "Not calculated"), 
-    "Median power for detecting 4/3PSM estimate" = ifelse(forBiasAdj == TRUE, ifelse(resultSM["est"] > 0 * ifelse(exists("side") & side == "left", -1, 1), powerSMresult, paste("ES estimate in the opposite direction")), "Not calculated"))
+    "Median power for detecting 4/3PSM estimate" = ifelse(forBiasAdj == TRUE, ifelse(resultSM["est"] * ifelse(exists("side") & side == "left", -1, 1) > 0, powerSMresult, paste("ES estimate in the opposite direction")), "Not calculated"))
 }
 
 # Publication bias summary function-------------------------------
@@ -338,7 +338,7 @@ bias <- function(data = NA, rmaObject = NA, runRoBMA = runRoBMAmodel){
 
 # Summary results ---------------------------------------------------------
 
-maResults <- function(rmaObject = NA, data = NA, bias = T){
+maResults <- function(rmaObject = NA, data = NA, bias = biasAdjustment){
   list(
     "RMA results with model-based SEs" = rmaObject[[2]],
     "RVE SEs with Satterthwaite small-sample correction" = list("test" = coef_test(rmaObject[[2]], vcov = "CR2", cluster = data[data$useMeta == 1,]$study), "CIs" = conf_int(rmaObject[[2]], vcov = "CR2", cluster = data[data$useMeta == 1,]$study)),
@@ -355,7 +355,7 @@ biasResults <- function(rmaObject = NA, data = NA){
     "Power for detecting SESOI and bias-corrected parameter estimates" = powerEst(data))
 }
 
-maResultsTable <- function(maResultsObject, metaAnalysis = TRUE, bias = TRUE){
+maResultsTable <- function(maResultsObject, metaAnalysis = TRUE, bias = biasAdjustment){
   if(bias == TRUE & metaAnalysis == TRUE){
     noquote(c(
       "k" = as.numeric(maResultsObject[[1]]$k.all),

@@ -101,10 +101,13 @@ side <- "left"
 # Assuming alpha level of .05 for the two-tailed test
 test <- "one-tailed"
 
+# Define whether to run publication bias adjustment models
+biasAdjustment <- TRUE
+
 # No of simulations for the permutation-based bias correction models and p-curve specifically
 nIterations <- 5000 # Set to 5 just to make code checking/running fast. For the final analysis, it should be set to 5000.
-nIterationsPcurve <- 100
-nIterationVWsensitivity <- 100 # Number of iterations for the Vevea & Woods (2005) step function model sensitivity analysis 
+nIterationsPcurve <- 200
+nIterationVWsensitivity <- 200 # Number of iterations for the Vevea & Woods (2005) step function model sensitivity analysis 
 
 # Controls for the multiple-parameter selection models 
 
@@ -137,9 +140,9 @@ selModAsCondEstimator <- FALSE # if selModAsCondEstimator = TRUE, use the select
 # Exclude studies having an overall Risk of Bias score of at least x.
 acceptableRiskOfBias <- 2
 
-# Sourcing scripts and data, outlier removal -----------------------------------------------------------------
+# Sourcing scripts and data, the removal of outliers -----------------------------------------------------------------
 # Define the vectors with result number of the effect, based on the outlier diagnostics carried out in maDiag.R script
-outliersNature <- c() #38 is an outlier
+outliersNature <- c(38, 44, 45, 46, 50) #c(38, 44, 45, 46, 50) are outliers. Replace with empty vector, c(), to run the sensitivity analysis including those outliers.
 outliersSocial <- c()
 
 source("functions.R")
@@ -153,9 +156,11 @@ funnel <- metafor::funnel
 
 #'# Descriptives
 #'
-#'## Publication year for Being in nature
+#'## Publication year
+#'
+#'### Publication year for Being in nature
 c("from" = min(dataNature$pubYear, na.rm = T), "to" = max(dataNature$pubYear, na.rm = T))
-#'## Publication year  for Social support
+#'### Publication year for Social support
 c("from" = min(dataSocial$pubYear, na.rm = T), "to" = max(dataSocial$pubYear, na.rm = T))
 
 #'## Sample sizes
@@ -253,12 +258,12 @@ dataSocial %$% metafor::funnel.default(yi, vi, level=c(90, 95, 99), shade=c("whi
 
 #'## Forest plots
 #'### Being in nature
-dataNature %$% forest(rmaObjects[[1]]$`RMA.MV object with RVE SEs with n/(n-p) small-sample correction`, order = "prec", slab = label, efac = 1, cex = .9, col="gray40", psize=1, cex.lab=1, cex.axis=1,
-                    xlab = expression(paste("Hedges' ",italic("g"))), header="PaperID/StudyID/EffectID", mlab="", addpred = T)
+dataNature %$% forest(rmaObjects[[1]]$`RMA.MV object with RVE SEs with n/(n-p) small-sample correction`, order = "prec", slab = authorsShort, efac = 1, cex = .6, col="gray40", psize=1, cex.lab=1, cex.axis=1,
+                    xlab = expression(paste("Hedges' ",italic("g"))), header="Paper", mlab="", addpred = T)
 
 #'### Social support
-dataSocial %$% forest(rmaObjects[[2]]$`RMA.MV object with RVE SEs with n/(n-p) small-sample correction`, order = "prec", slab = label, efac = 1, cex = 1, col="gray40", psize=1, cex.lab=1, cex.axis=1,
-                   xlab = expression(paste("Hedges' ",italic("g"))), header="PaperID/StudyID/EffectID", mlab="", addpred = T)
+dataSocial %$% forest(rmaObjects[[2]]$`RMA.MV object with RVE SEs with n/(n-p) small-sample correction`, order = "prec", slab = authorsShort, efac = 1, cex = .7, col="gray40", psize=1, cex.lab=1, cex.axis=1,
+                   xlab = expression(paste("Hedges' ",italic("g"))), header="Paper", mlab="", addpred = T)
 
 #'## p-curve plots
 #'### Being in nature
@@ -324,7 +329,7 @@ for(i in 1:length(dataObjects)){
   viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
   rmaObject <- rma.mv(yi ~ 0 + factor(populationType), V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
   RVEmodel <- coef_test(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
-  popType[[i]] <- list(table(dataObjects[[i]]$populationType), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(c(1:3)), vcov = "CR2"))
+  popType[[i]] <- list(table(dataObjects[[i]]$populationType), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(c(1:max(dataObjects[[i]]$populationType, na.rm = TRUE))), vcov = "CR2"))
 }
 (popType <- setNames(popType, nm = namesObjects))
 
@@ -346,9 +351,11 @@ viMatrixSocialSupportSource <- impute_covariance_matrix(dataSocial$vi, cluster =
 rmaObjectSocialSupportSource <- rma.mv(yi ~ 0 + factor(supportSource), V = viMatrixSocialSupportSource, data = dataSocial, method = "REML", random = ~ 1|study/result, sparse = TRUE)
 (effTimingSocialSupportSource <- list(table(dataSocial$supportSource), "Model results" = rmaObjectSocialSupportSource, "RVE Wald test" = Wald_test(rmaObjectSocialSupportSource, constraints = constrain_equal(c(1:2)), vcov = "CR2")))
 
-#'## Excluding effects due to inconsistent means or SDs
+#'## Excluding effects based on inconsistent means or SDs
+#'
+#' Only for Being in nature, since there were 0 inconsistent means or SDs for Social support studies.
 consIncons <- list(NA)
-i <- 1 # Only for Being in nature, since there were 0 inconsistent means or SDs for Social support studies.
+i <- 1
 #for(i in 1:length(dataObjects)){
 viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
 rmaObject <- rma.mv(yi ~ 0 + factor(as.logical(inconsistenciesCountGRIMMER)), V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
@@ -368,7 +375,7 @@ for(i in 1:length(dataObjects)){
   viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
   rmaObject <- rma.mv(yi ~ 0 + factor(robOverall > acceptableRiskOfBias), V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
   RVEmodel <- conf_int(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
-  highRoB[[i]] <- list("RoB" = table(as.logical(dataObjects[[i]]$robOverall2)), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(1:2), vcov = "CR2"))
+  highRoB[[i]] <- list("RoB" = table(as.logical(dataObjects[[i]]$robOverall > acceptableRiskOfBias)), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(1:2), vcov = "CR2"))
 }
 (highRoB <- setNames(highRoB, nm = namesObjects))
 

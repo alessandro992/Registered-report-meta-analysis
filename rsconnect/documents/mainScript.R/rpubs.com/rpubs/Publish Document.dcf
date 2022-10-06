@@ -1,0 +1,11 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/931514/0e2a020c9bb74f1ab6e3a5ce29469276
+bundleId: https://api.rpubs.com/api/v1/document/931514/0e2a020c9bb74f1ab6e3a5ce29469276
+url: http://rpubs.com/ivanropovik/931514
+when: 1665052198.41365
+lastSyncTime: 1665052198.41366
