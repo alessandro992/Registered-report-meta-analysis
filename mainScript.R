@@ -201,21 +201,38 @@ sum(unlist(out), na.rm = T)
 #'### Mean gender ratio (percent female) for Being in nature
 out <- list(NA)
 for(i in unique(dataNature$study)){
-  out[i] <- dataNature %>% filter(study == i) %>% select(percFemale) %>% unlist() %>% median()
+  out[[i]] <- dataNature %>% filter(study == i) %>% select(percFemale, ni) %$% c(median(percFemale, na.rm = T),
+                                                                                 median(ni, na.rm = T))
 }
-c("Mean" = mean(unlist(out), na.rm = T),  "SD" = sd(unlist(out), na.rm = T))
+tbl <- t(rbindlist(list(out[-1])))
+c("Mean" = weighted.mean(tbl[,1], w = tbl[,2], na.rm = T),  "SD" = sd(tbl[,1], na.rm = T))
 #'### Mean gender ratio (percent female) for Social support
 out <- list(NA)
 for(i in unique(dataSocial$study)){
-  out[i] <- dataSocial %>% filter(study == i) %>% select(percFemale) %>% unlist() %>% median()
+  out[[i]] <- dataSocial %>% filter(study == i) %>% select(percFemale, ni) %$% c(median(percFemale, na.rm = T),
+                                                                                 median(ni, na.rm = T))
 }
-c("Mean" = mean(unlist(out), na.rm = T),  "SD" = sd(unlist(out), na.rm = T))
-
+tbl <- t(rbindlist(list(out[-1])))
+c("Mean" = weighted.mean(tbl[,1], w = tbl[,2], na.rm = T),  "SD" = sd(tbl[,1], na.rm = T))
 #'### Weighted mean age of included samples for Being in nature
-weighted.mean(dataNature$meanAge, dataNature$ni, na.rm = T)
-#'### Weighted mean age of included samples for Social support
-weighted.mean(dataSocial$meanAge, dataSocial$ni, na.rm = T)
+out <- list(NA)
+for(i in unique(dataNature$study)){
+  out[[i]] <- dataNature %>% filter(study == i) %>% select(meanAge, ni) %$% c(median(meanAge, na.rm = T),
+                                                                                 median(ni, na.rm = T))
+}
+tbl <- t(rbindlist(list(out[-1])))
+list(centralTendency = c("Mean" = weighted.mean(tbl[,1], w = tbl[,2], na.rm = T),  "SD" = sd(tbl[,1], na.rm = T)),
+     deciles = quantile(tbl[,1], probs = seq(0, 1, 1/10), na.rm = T, ))
 
+#'### Weighted mean age of included samples for Social support
+out <- list(NA)
+for(i in unique(dataSocial$study)){
+  out[[i]] <- dataSocial %>% filter(study == i) %>% select(meanAge, ni) %$% c(median(meanAge, na.rm = T),
+                                                                              median(ni, na.rm = T))
+}
+tbl <- t(rbindlist(list(out[-1])))
+list(centralTendency = c("Mean" = weighted.mean(tbl[,1], w = tbl[,2], na.rm = T),  "SD" = sd(tbl[,1], na.rm = T)),
+     deciles = quantile(tbl[,1], probs = seq(0, 1, 1/10), na.rm = T, ))
 
 # Meta-analysis -----------------------------------------------------------
 #'# Meta-analysis results
@@ -307,9 +324,20 @@ for(i in 1:length(dataObjects)){
   viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
   rmaObject <- rma.mv(yi ~ 0 + percFemale, V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
   RVEmodel <- coef_test(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
-  femaleProportion[[i]] <- list("Proportion of females" = median(dataObjects[[i]]$percFemale, na.rm = TRUE), "Model results" = RVEmodel)
+  femaleProportion[[i]] <- list("Model results" = RVEmodel)
 }
 (femaleProportion <- setNames(femaleProportion, nm = namesObjects))
+
+#'## Moderator analysis for the mean age of the sample
+
+ageMod <- list(NA)
+for(i in 1:length(dataObjects)){
+  viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
+  rmaObject <- rma.mv(yi ~ 0 + meanAge, V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
+  RVEmodel <- coef_test(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
+  ageMod[[i]] <- list("Model results" = RVEmodel)
+}
+(ageMod <- setNames(ageMod, nm = namesObjects))
 
 #'## Subgroup analysis for the type of the comparison group
 
@@ -423,6 +451,17 @@ prop.table(table(statcheckSocialSupport$Error))
 table(statcheckSocialSupport$DecisionError)[2]/table(statcheckSocialSupport$Error)[2]
 #' How many papers contained statcheck errors
 statcheckSocialSupport %>% filter(Error == TRUE) %>% select(Source) %>% unique() %>% nrow()/length(unique(statcheckSocialSupport$Source))
+
+#'## Excluding effects based on inconsistent data
+statcheckErrOut <- list(NA)
+for(i in 1:length(dataObjects)){
+  viMatrix <- impute_covariance_matrix(dataObjects[[i]]$vi, cluster = dataObjects[[i]]$study, r = rho)
+  rmaObject <- rma.mv(yi ~ 0 + factor(researchDesign == 1), V = viMatrix, data = dataObjects[[i]], method = "REML", random = ~ 1|study/result, sparse = TRUE)
+  RVEmodel <- conf_int(rmaObject, vcov = "CR2", test = "z", cluster = dataObjects[[i]]$study)
+  statcheckErrOut[[i]] <- list(table(dataObjects[[i]]$researchDesign), "Model results" = RVEmodel, "RVE Wald test" = Wald_test(rmaObject, constraints = constrain_equal(1:2), vcov = "CR2"))
+}
+statcheckErrOut <- setNames(statcheckErrOut, nm = namesObjects)
+statcheckErrOut
 
 #########################
 

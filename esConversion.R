@@ -22,7 +22,7 @@ dat$pReported <- as.numeric(as.character(gsub("[^0-9.]", "", dat$pReported)))
 table(dat$researchDesign, useNA="ifany")
 
 # Compute gender ratio (% of female)
-dat$percFemale <- ifelse(is.na(dat$percFemale), dat$nFemale/(dat$nFemale + dat$nMale), dat$percFemale)
+dat$percFemale <- ifelse(is.na(dat$percFemale), (dat$nFemale/(dat$nFemale + dat$nMale))*100, dat$percFemale)
 
 # Compute SDs from SEs
 dat <- dat %>% mutate(sd1 = ifelse(is.na(sd1) & !is.na(se1), se1*sqrt(n1), sd1),
